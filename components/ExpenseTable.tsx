@@ -20,8 +20,9 @@ export default function ExpenseTable({
   onDelete,
   deletingDate = null,
 }: ExpenseTableProps) {
-  const savings = targetExpense - totalExpense;
-  const extra = totalExpense - targetExpense;
+  // If no expenses, savings and extra should be 0
+  const savings = expenses.length === 0 ? 0 : (targetExpense - totalExpense > 0 ? targetExpense - totalExpense : 0);
+  const extra = expenses.length === 0 ? 0 : (totalExpense - targetExpense > 0 ? totalExpense - targetExpense : 0);
 
   // Group expenses by date
   const expensesByDate = expenses.reduce((acc, expense) => {

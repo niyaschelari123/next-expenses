@@ -5,12 +5,15 @@ import { format } from 'date-fns';
 import { collection, addDoc, query, getDocs, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Expense } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import ExpenseTable from '@/components/ExpenseTable';
 import StatusMessage from '@/components/StatusMessage';
+import Login from '@/components/Login';
 
 export default function Home() {
+  const { currentUser, loading: authLoading, logout } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editDate, setEditDate] = useState('');
@@ -222,6 +225,23 @@ export default function Home() {
 
   const totalExpense = expenses.reduce((sum, expense) => sum + expense.money, 0);
 
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!currentUser) {
+    return <Login />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <div className="mx-auto max-w-4xl px-4 pt-6">
@@ -229,27 +249,6 @@ export default function Home() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Daily Money Manager</h1>
           <p className="text-sm text-gray-600">Track your daily expenses and savings</p>
-        </div>
-
-        {/* Daily Target Expense Section */}
-        <div className="mb-6 rounded-lg bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Daily Target Expense (₹)
-            </label>
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              <span>✏️</span> Click to edit
-            </span>
-          </div>
-          <input
-            type="number"
-            value={targetExpense}
-            onChange={(e) => handleTargetChange(parseFloat(e.target.value) || 0)}
-            min="0"
-            step="0.01"
-            className="w-full rounded-lg border-2 border-blue-200 px-3 py-2 text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-blue-50"
-            placeholder="Enter target amount"
-          />
         </div>
 
         {/* Add Expense Button */}
@@ -308,6 +307,45 @@ export default function Home() {
                 </button>
               </div>
             )}
+
+            {/* Daily Target Expense Section */}
+            <div className="mt-6 rounded-lg bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Daily Target Expense (₹)
+                </label>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span>✏️</span> Click to edit
+                </span>
+              </div>
+              <input
+                type="number"
+                value={targetExpense}
+                onChange={(e) => handleTargetChange(parseFloat(e.target.value) || 0)}
+                min="0"
+                step="0.01"
+                className="w-full rounded-lg border-2 border-blue-200 px-3 py-2 text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-blue-50"
+                placeholder="Enter target amount"
+              />
+            </div>
+
+            {/* User Info and Logout */}
+            <div className="mt-6 rounded-lg bg-white p-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Logged in as</p>
+                  <span className="text-sm font-medium text-gray-800 truncate block max-w-[250px] sm:max-w-none" title={currentUser.email || undefined}>
+                    {currentUser.email}
+                  </span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="w-full sm:w-auto rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
           </>
         )}
 
