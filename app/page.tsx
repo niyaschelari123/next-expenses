@@ -1,65 +1,339 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { collection, addDoc, query, getDocs, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Expense } from '@/types';
+import AddExpenseModal from '@/components/AddExpenseModal';
+import EditExpenseModal from '@/components/EditExpenseModal';
+import ExpenseTable from '@/components/ExpenseTable';
+import StatusMessage from '@/components/StatusMessage';
 
 export default function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editDate, setEditDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [targetExpense, setTargetExpense] = useState(400);
+  const [loading, setLoading] = useState(true);
+  const [addingExpense, setAddingExpense] = useState(false);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [updatingExpenseId, setUpdatingExpenseId] = useState<string | null>(null);
+  const [deletingDate, setDeletingDate] = useState<string | null>(null);
+  const [clearingAll, setClearingAll] = useState(false);
+
+  // Load target expense from localStorage
+  useEffect(() => {
+    const savedTarget = localStorage.getItem('targetExpense');
+    if (savedTarget) {
+      setTargetExpense(parseFloat(savedTarget));
+    }
+  }, []);
+
+  // Load expenses from Firebase
+  useEffect(() => {
+    loadExpenses();
+  }, []);
+
+  const loadExpenses = async () => {
+    try {
+      setLoading(true);
+      const expensesRef = collection(db, 'expenses');
+      const q = query(expensesRef, orderBy('updatedTime', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const loadedExpenses: Expense[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        loadedExpenses.push({
+          id: doc.id,
+          money: data.money,
+          updatedTime: data.updatedTime.toDate(),
+          reason: data.reason || '',
+          date: data.date,
+        });
+      });
+      
+      setExpenses(loadedExpenses);
+    } catch (error) {
+      console.error('Error loading expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddExpense = async (money: number, reason: string, date: string) => {
+    try {
+      // Check if expense already exists for this date
+      const existingExpense = expenses.find((exp) => exp.date === date);
+      if (existingExpense) {
+        alert(`An expense already exists for ${format(new Date(date), 'MMM dd, yyyy')}. Please use Edit to add more expenses for this date.`);
+        return;
+      }
+      setAddingExpense(true);
+      const now = new Date();
+      const expenseData = {
+        money,
+        reason: reason || '',
+        updatedTime: now,
+        date,
+      };
+
+      const docRef = await addDoc(collection(db, 'expenses'), expenseData);
+      
+      const newExpense: Expense = {
+        id: docRef.id,
+        money,
+        reason: reason || '',
+        updatedTime: now,
+        date,
+      };
+
+      setExpenses([newExpense, ...expenses]);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      alert('Failed to add expense. Please try again.');
+    } finally {
+      setAddingExpense(false);
+    }
+  };
+
+  const handleAddExpenseInEdit = async (money: number, reason: string, date: string) => {
+    try {
+      setAddingExpense(true);
+      const now = new Date();
+      const expenseData = {
+        money,
+        reason: reason || '',
+        updatedTime: now,
+        date,
+      };
+
+      const docRef = await addDoc(collection(db, 'expenses'), expenseData);
+      
+      const newExpense: Expense = {
+        id: docRef.id,
+        money,
+        reason: reason || '',
+        updatedTime: now,
+        date,
+      };
+
+      setExpenses([newExpense, ...expenses]);
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      alert('Failed to add expense. Please try again.');
+    } finally {
+      setAddingExpense(false);
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      setDeletingExpenseId(id);
+      await deleteDoc(doc(db, 'expenses', id));
+      setExpenses(expenses.filter((exp) => exp.id !== id));
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      alert('Failed to delete expense. Please try again.');
+    } finally {
+      setDeletingExpenseId(null);
+    }
+  };
+
+  const handleUpdateExpense = async (id: string, money: number, reason: string) => {
+    try {
+      setUpdatingExpenseId(id);
+      const expenseRef = doc(db, 'expenses', id);
+      await updateDoc(expenseRef, {
+        money,
+        reason: reason || '',
+        updatedTime: new Date(),
+      });
+      
+      setExpenses(expenses.map((exp) => 
+        exp.id === id 
+          ? { ...exp, money, reason: reason || '', updatedTime: new Date() }
+          : exp
+      ));
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      alert('Failed to update expense. Please try again.');
+    } finally {
+      setUpdatingExpenseId(null);
+    }
+  };
+
+  const handleDeleteDate = async (date: string) => {
+    if (confirm(`Are you sure you want to delete all expenses for ${format(new Date(date), 'MMM dd, yyyy')}?`)) {
+      try {
+        setDeletingDate(date);
+        const expensesToDelete = expenses.filter((exp) => exp.date === date);
+        await Promise.all(
+          expensesToDelete.map((exp) => deleteDoc(doc(db, 'expenses', exp.id!)))
+        );
+        setExpenses(expenses.filter((exp) => exp.date !== date));
+      } catch (error) {
+        console.error('Error deleting expenses:', error);
+        alert('Failed to delete expenses. Please try again.');
+      } finally {
+        setDeletingDate(null);
+      }
+    }
+  };
+
+  const handleEditDate = (date: string) => {
+    setEditDate(date);
+    setIsEditModalOpen(true);
+  };
+
+  const handleClearAllData = async () => {
+    if (expenses.length === 0) {
+      alert('No expenses to clear.');
+      return;
+    }
+
+    if (confirm('Are you sure you want to clear ALL expenses? This action cannot be undone.')) {
+      try {
+        setClearingAll(true);
+        // Delete all expenses from Firebase
+        await Promise.all(
+          expenses.map((exp) => deleteDoc(doc(db, 'expenses', exp.id!)))
+        );
+        // Clear the expenses state
+        setExpenses([]);
+        alert('All expenses have been cleared successfully!');
+      } catch (error) {
+        console.error('Error clearing expenses:', error);
+        alert('Failed to clear expenses. Please try again.');
+      } finally {
+        setClearingAll(false);
+      }
+    }
+  };
+
+  const handleTargetChange = async (value: number) => {
+    setTargetExpense(value);
+    localStorage.setItem('targetExpense', value.toString());
+  };
+
+  const totalExpense = expenses.reduce((sum, expense) => sum + expense.money, 0);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gray-50 pb-8">
+      <div className="mx-auto max-w-4xl px-4 pt-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Daily Money Manager</h1>
+          <p className="text-sm text-gray-600">Track your daily expenses and savings</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Daily Target Expense Section */}
+        <div className="mb-6 rounded-lg bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Daily Target Expense (₹)
+            </label>
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              <span>✏️</span> Click to edit
+            </span>
+          </div>
+          <input
+            type="number"
+            value={targetExpense}
+            onChange={(e) => handleTargetChange(parseFloat(e.target.value) || 0)}
+            min="0"
+            step="0.01"
+            className="w-full rounded-lg border-2 border-blue-200 px-3 py-2 text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 bg-blue-50"
+            placeholder="Enter target amount"
+          />
+        </div>
+
+        {/* Add Expense Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => {
+              setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+              setIsModalOpen(true);
+            }}
+            className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            + Add Expense
+          </button>
+        </div>
+
+        {/* Expense Table */}
+        {loading ? (
+          <div className="rounded-lg bg-white p-8 text-center text-gray-500">
+            Loading expenses...
+          </div>
+        ) : (
+          <>
+            <ExpenseTable
+              expenses={expenses}
+              totalExpense={totalExpense}
+              targetExpense={targetExpense}
+              onEdit={handleEditDate}
+              onDelete={handleDeleteDate}
+              deletingDate={deletingDate}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+            {/* Status Message */}
+            <StatusMessage
+              expenses={expenses}
+              targetExpense={targetExpense}
+            />
+
+            {/* Clear All Data Button */}
+            {expenses.length > 0 && (
+              <div className="mt-6">
+                <button
+                  onClick={handleClearAllData}
+                  disabled={clearingAll}
+                  className="w-full rounded-lg bg-red-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {clearingAll ? (
+                    <>
+                      <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                      Clearing...
+                    </>
+                  ) : (
+                    <>
+                      🗑️ Clear All Data (Start New Month)
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Add Expense Modal */}
+        <AddExpenseModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onAdd={handleAddExpense}
+          selectedDate={selectedDate}
+          loading={addingExpense}
+        />
+
+        {/* Edit Expense Modal */}
+        <EditExpenseModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          date={editDate}
+          expenses={expenses}
+          onAddExpense={handleAddExpenseInEdit}
+          onDeleteExpense={handleDeleteExpense}
+          onUpdateExpense={handleUpdateExpense}
+          addingLoading={addingExpense}
+          deletingExpenseId={deletingExpenseId}
+          updatingExpenseId={updatingExpenseId}
+        />
+      </div>
     </div>
   );
 }

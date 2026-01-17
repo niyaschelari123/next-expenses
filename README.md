@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Daily Money Manager
+
+A Next.js application for managing daily expenses with Firebase, Tailwind CSS, and TypeScript.
+
+## Features
+
+- ✅ Add daily expenses with optional reason
+- ✅ Set daily target expense (default: ₹400)
+- ✅ View expenses in a table with date, amount, reason, and time
+- ✅ Track savings (when spending < target) and extra spending
+- ✅ Get congratulatory messages for savings or warnings for extra spending
+- ✅ Mobile-oriented responsive design
+- ✅ Firebase Firestore integration for data persistence
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18.0.0 or higher
+- npm, yarn, pnpm, or bun
+- Firebase project
+
+### Installation
+
+1. Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+2. Set up Firebase:
+
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project or use an existing one
+   - Enable Firestore Database
+   - Go to Project Settings > General > Your apps
+   - Add a web app and copy the Firebase configuration
+
+3. Create a `.env.local` file in the root directory:
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```
+
+4. Set up Firestore Security Rules (for development):
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /expenses/{document=**} {
+      allow read, write: if true; // For development only - update for production
+    }
+  }
+}
+```
+
+5. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Set Daily Target**: Enter your daily target expense at the top (default: ₹400)
+2. **Add Expense**: Click "Add Expense" button to add a new expense
+   - Select date (defaults to today)
+   - Enter amount
+   - Optionally add a reason
+3. **View Expenses**: See all expenses in the table with:
+   - Total expense
+   - Savings (if spending < target)
+   - Extra spending (if spending > target)
+4. **Status Messages**: Get feedback on your spending habits below the table
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+├── app/
+│   ├── page.tsx          # Main page component
+│   ├── layout.tsx        # Root layout
+│   └── globals.css       # Global styles
+├── components/
+│   ├── AddExpenseModal.tsx  # Modal for adding expenses
+│   ├── ExpenseTable.tsx     # Table displaying expenses
+│   └── StatusMessage.tsx    # Savings/extra spending messages
+├── lib/
+│   └── firebase.ts       # Firebase configuration
+└── types/
+    └── index.ts          # TypeScript type definitions
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Technologies Used
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Next.js 14** - React framework with App Router (compatible with Node.js 18)
+- **React 18** - UI library
+- **TypeScript** - Type safety
+- **Tailwind CSS 3** - Styling
+- **Firebase Firestore 10** - Database (compatible with Node.js 18)
+- **date-fns** - Date formatting
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
