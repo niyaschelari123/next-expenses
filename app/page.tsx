@@ -69,12 +69,6 @@ export default function Home() {
 
   const handleAddExpense = async (money: number, reason: string, date: string) => {
     try {
-      // Check if expense already exists for this date
-      const existingExpense = expenses.find((exp) => exp.date === date);
-      if (existingExpense) {
-        alert(`An expense already exists for ${format(new Date(date), 'MMM dd, yyyy')}. Please use Edit to add more expenses for this date.`);
-        return;
-      }
       setAddingExpense(true);
       const now = new Date();
       const expenseData = {
@@ -95,7 +89,6 @@ export default function Home() {
       };
 
       setExpenses([newExpense, ...expenses]);
-      setIsModalOpen(false);
     } catch (error) {
       console.error('Error adding expense:', error);
       alert('Failed to add expense. Please try again.');
@@ -355,6 +348,7 @@ export default function Home() {
           onClose={() => setIsModalOpen(false)}
           onAdd={handleAddExpense}
           selectedDate={selectedDate}
+          expenses={expenses}
           loading={addingExpense}
         />
 

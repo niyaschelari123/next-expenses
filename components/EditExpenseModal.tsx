@@ -42,7 +42,7 @@ export default function EditExpenseModal({
   const handleAddNew = (e: React.FormEvent) => {
     e.preventDefault();
     const moneyValue = parseFloat(newMoney);
-    if (moneyValue > 0) {
+    if (!Number.isNaN(moneyValue) && moneyValue >= 0) {
       onAddExpense(moneyValue, newReason, date);
       setNewMoney('');
       setNewReason('');
@@ -63,7 +63,7 @@ export default function EditExpenseModal({
 
   const handleSaveEdit = (id: string) => {
     const moneyValue = parseFloat(editMoney);
-    if (moneyValue > 0) {
+    if (!Number.isNaN(moneyValue) && moneyValue >= 0) {
       onUpdateExpense(id, moneyValue, editReason);
       setEditingId(null);
       setEditMoney('');
@@ -120,7 +120,7 @@ export default function EditExpenseModal({
                           value={editMoney}
                           onChange={(e) => setEditMoney(e.target.value)}
                           step="0.01"
-                          min="0.01"
+                          min="0"
                           className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           required
                         />
@@ -219,9 +219,9 @@ export default function EditExpenseModal({
                 type="number"
                 value={newMoney}
                 onChange={(e) => setNewMoney(e.target.value)}
-                placeholder="Enter amount"
+                placeholder="0 or more"
                 step="0.01"
-                min="0.01"
+                min="0"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 required
               />

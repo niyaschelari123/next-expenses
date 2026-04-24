@@ -20,9 +20,12 @@ export default function ExpenseTable({
   onDelete,
   deletingDate = null,
 }: ExpenseTableProps) {
-  // If no expenses, savings and extra should be 0
-  const savings = expenses.length === 0 ? 0 : (targetExpense - totalExpense > 0 ? targetExpense - totalExpense : 0);
-  const extra = expenses.length === 0 ? 0 : (totalExpense - targetExpense > 0 ? totalExpense - targetExpense : 0);
+  // Top summary: budget = daily target × distinct days you've logged; split underspend vs overspend
+  const distinctDayCount = new Set(expenses.map((e) => e.date)).size;
+  const totalAvailable = targetExpense * distinctDayCount;
+  const net = totalAvailable - totalExpense;
+  const savings = expenses.length === 0 ? 0 : Math.max(0, net);
+  const extra = expenses.length === 0 ? 0 : Math.max(0, -net);
 
   // Group expenses by date
   const expensesByDate = expenses.reduce((acc, expense) => {
